@@ -12,7 +12,7 @@ Improve the template with patterns every real Go API needs, without overcomplica
 
 ## Scope
 
-Seven focused additions:
+Eight focused additions:
 
 1. `internal/models` — typed response structs
 2. Request logging middleware
@@ -21,6 +21,7 @@ Seven focused additions:
 5. Graceful shutdown
 6. `Makefile`
 7. `docs/openapi.yaml`
+8. Docker scaffolding
 
 ---
 
@@ -53,14 +54,14 @@ Two middleware functions in a new `internal/middleware` package.
 
 ### Request ID (`requestid.go`)
 
-Generates a UUID v4 per request using `crypto/rand` (no new dependency), sets it on the response as `X-Request-ID`, and stores it in the request context under a typed key:
+Generates a UUID v4 per request using `crypto/rand` (no new dependency), sets it on the response as `X-Request-ID`, and stores it in the request context under an unexported typed key:
 
 ```go
 type contextKey string
-const RequestIDKey contextKey = "requestID"
+var requestIDKey = contextKey("requestID")
 ```
 
-Using a typed key (not a plain string) prevents collisions with other packages storing values in context.
+The key is unexported because only code within the `middleware` package reads it (the logger). A typed key (not a plain string) is still used to prevent context value collisions — the pattern is demonstrated without unnecessary export.
 
 ### Logger (`logger.go`)
 
@@ -153,6 +154,21 @@ Components section defines `UserResponse` and `ErrorResponse` schemas, matching 
 
 ---
 
+## 8. Docker Scaffolding
+
+A multi-stage `Dockerfile` at the repo root:
+
+- **Build stage:** `golang:1.22-alpine` — compiles the binary
+- **Runtime stage:** `scratch` (or `alpine`) — copies only the compiled binary, keeping the image minimal
+
+A `.dockerignore` excludes `.git`, `bin/`, and other non-essential files from the build context.
+
+No `docker-compose.yml` — the template has no external service dependencies (in-memory repository), so compose adds no value here.
+
+**Makefile addition:** `make docker-build` target: `docker build -t go-api-template .`
+
+---
+
 ## File Changes Summary
 
 | File | Action |
@@ -163,11 +179,13 @@ Components section defines `UserResponse` and `ErrorResponse` schemas, matching 
 | `internal/config/config.go` | Create |
 | `docs/openapi.yaml` | Create |
 | `Makefile` | Create |
+| `Dockerfile` | Create |
+| `.dockerignore` | Create |
 | `cmd/api/main.go` | Update — graceful shutdown, use config |
 | `internal/server/router.go` | Update — wire middleware |
 | `internal/server/user_handler.go` | Update — use models |
 | `internal/server/router_test.go` | Update — decode into models.UserResponse |
-| `README.md` | Update — document new Makefile targets and config vars |
+| `README.md` | Update — document Makefile targets, config vars, Docker usage |
 | `.gitignore` | Create or update — add `bin/` |
 
 ---
@@ -176,6 +194,6 @@ Components section defines `UserResponse` and `ErrorResponse` schemas, matching 
 
 - Database integration (keep in-memory repository)
 - Authentication / JWT
-- Dependency injection frameworks
+- Dependency injection frameworks (manual constructor injection via `NewRouterWithRepository` is sufficient and idiomatic)
 - Code-generated API docs (swaggo/swag)
-- Docker / containerization
+- Docker Compose (no external service dependencies)
