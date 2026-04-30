@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"go-api-template/internal/repository"
+	"go-api-template/internal/service"
 )
 
 type response struct {
@@ -17,6 +18,10 @@ func NewRouter() http.Handler {
 }
 
 func NewRouterWithRepository(users repository.UserRepository) http.Handler {
+	return NewRouterWithUserService(service.NewUserService(users))
+}
+
+func NewRouterWithUserService(users service.UserService) http.Handler {
 	r := mux.NewRouter()
 	userHandler := newUserHandler(users)
 

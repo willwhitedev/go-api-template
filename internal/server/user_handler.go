@@ -1,18 +1,20 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"go-api-template/internal/models"
-	"go-api-template/internal/repository"
+	"go-api-template/internal/service"
+
+	"github.com/gorilla/mux"
 )
 
 type userHandler struct {
-	users repository.UserRepository
+	users service.UserService
 }
 
-func newUserHandler(users repository.UserRepository) *userHandler {
+func newUserHandler(users service.UserService) *userHandler {
 	return &userHandler{
 		users: users,
 	}
@@ -20,12 +22,13 @@ func newUserHandler(users repository.UserRepository) *userHandler {
 
 func (h *userHandler) getByID(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-	if id == "" {
+
+	user, found, err := h.users.GetByID(r.Context(), id)
+	if errors.Is(err, service.ErrMissingUserID) {
 		writeJSON(w, http.StatusBadRequest, models.ErrorResponse{Error: "missing user id"})
 		return
 	}
 
-	user, found, err := h.users.FindByID(r.Context(), id)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.ErrorResponse{Error: "failed to load user"})
 		return
